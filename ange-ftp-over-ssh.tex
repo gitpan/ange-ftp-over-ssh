@@ -1,0 +1,107 @@
+\documentstyle[html]{article}
+\title{Ange ftp over ssh}
+\author{Russell Standish\\http://parallel.hpc.unsw.edu.au/rks}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+GNU emacs has a wonderful remote file editing facility called Ange
+ftp. However, because it uses ftp as its file transport agent,
+passwords are transmitted as plain text which can be snooped by the
+unscrupulous ``bad guys'' out there in cyberspace. This package is a
+``drop in replacement'' for the ftp client that instead redirects the
+file transfers over ssh, which allows for connections without the ned
+for plain text passwords to be transmitted.
+\end{abstract}
+
+\section{Prerequisites}
+
+You should have \htmladdnormallink{GNU
+  Emacs}{http://www.gnu.org/software/emacs/emacs.html} and
+\htmladdnormallink{ssh}{http://www.ssh.org/} installed, which you
+probably have already. You will also need \htmladdnormallink{Perl
+  5}{http://www.perl.com} installed. Then you need to download the
+\htmladdnormallink{nftp}{ftp://parallel.hpc.unsw.edu.au/software/ange-ftp-over-ssh.tar.gz}
+client software, written in perl. This software has only been tested
+on Unix platforms, but may well run on Windows without much change.
+
+If you are not already familiar with ange ftp, you should read the
+\htmladdnormallink{Emacs
+  manual}{http://www.gnu.org/manual/emacs/html_node/emacs_150.html#SEC156}.
+In brief, you can open remote files for editing using the syntax:
+\begin{verbatim}
+/host:filename
+/user@host:filename
+\end{verbatim}
+
+\section{Getting ssh to connect without prompting for a password}
+
+You also need to get ssh to connect to your remote site without
+prompting for a password, as ssh reads the keyboard directly, and
+cannot be fed a password directly from {\tt nftp.pl}. There are two
+ways to do this:
+\begin{enumerate}
+\item Set up a .rhosts or .shosts file on your remote system with you
+  local hostname and userid. This technique is simple, but requires
+  the local workstation to have a well known address (not true of ISP
+  dial account, for example). It is also susceptible to IP spoofing
+  attacks, and may well have been disabled by the system administrator
+  of the remote site for this reason.
+\item Set up an {\tt ssh-agent} to supply your bona fides to the
+  remote system using RSA public key encryption. My setup has the
+  following lines in my {\tt .profile}:
+\begin{verbatim}
+ttname=`tty`
+if [ "${ttname%%[0-9]}" = "/dev/tty" ]; then
+  eval `ssh-agent`
+  ssh-add
+fi
+\end{verbatim}
+This script (which you may need to modify for non-Linux OSes) will set
+up an {\tt ssh-agent}, and prompt you for your password to load your
+private key into the agent's database.
+
+You now need to copy your public key (located in
+\verb+.ssh/identity.pub+) into the files \verb+~/.ssh/authorized_keys+
+and \verb+~/.ssh/known_hosts+ on the remote remote system. This should
+enable the remote system to authenticate your ssh connection, using
+the public key information supplied by {\tt ssh-agent}.
+\end{enumerate}
+
+\section{Configuration file \~{}/.nftprc}
+
+Create the file \verb+~/.nftprc+ containing a list of machines you
+wish to remotely edit via ssh with the following sample format:
+\begin{verbatim}
+$aliases{grimble}="grimble.north-pole.com:22";
+$aliases{grunge}="localhost:2000";
+\end{verbatim}
+Any machine name not mentioned in this file will be connected to by
+the usual ftp method. In the above example, two hostnames are defined,
+grimble, and grunge. In the first case, {\tt nftp.pl} will ssh to grimble
+on port 22 (the standard ssh port). In the second case, the standard
+ssh port of grunge has been forwarded to port 2000 on localhost (by another ssh
+process perhaps). This is a convenient way of dealing with firewalls.
+
+\section{Configuring .emacs}
+
+Add the following line to yout {\tt .emacs} file:
+\begin{verbatim}
+(setq ange-ftp-ftp-program-name "nftp.pl")
+\end{verbatim}
+
+That should be it!
+
+\section{Things that can go wrong}
+
+nftp.pl deliberately suppresses error messages to avoid confusing
+ange-ftp. Try testing a file transfer using something like the
+following command:
+\begin{verbatim}
+scp -q -P 22 username@remote.host/.profile /tmp
+\end{verbatim}
+Any error messages you recieve should be taken seriously. For example,
+earlier versions of scp do not support -q, or your default PATH on the
+remote system may not include scp.
+
+\end{document}

@@ -1,0 +1,103 @@
+Ange ftp over ssh
+
+                 Russell Standish 
+           http://parallel.hpc.unsw.edu.au/rks
+
+Abstract:
+
+GNU emacs has a wonderful remote file editing facility called
+Ange ftp. However, because it uses ftp as its file transport agent,
+passwords are transmitted as plain text which can be snooped by
+the unscrupulous ``bad guys'' out there in cyberspace. This
+package is a ``drop in replacement'' for the ftp client that instead
+redirects the file transfers over ssh, which allows for connections
+without the ned for plain text passwords to be transmitted. 
+
+Prerequisites 
+
+You should have GNU Emacs and ssh installed, which you
+probably have already. You will also need Perl 5 installed. Then
+you need to download the nftp client software, written in perl.
+This software has only been tested on Unix platforms, but may
+well run on Windows without much change. 
+
+If you are not already familiar with ange ftp, you should read the
+Emacs manual. In brief, you can open remote files for editing
+using the syntax: 
+
+/host:filename
+/user@host:filename
+
+Getting ssh to connect without
+prompting for a password 
+
+You also need to get ssh to connect to your remote site without
+prompting for a password, as ssh reads the keyboard directly, and
+cannot be fed a password directly from nftp.pl. There are two
+ways to do this: 
+
+1. Set up a .rhosts or .shosts file on your remote system with
+     you local hostname and userid. This technique is simple,
+     but requires the local workstation to have a well known
+     address (not true of ISP dial account, for example). It is
+     also susceptible to IP spoofing attacks, and may well have
+     been disabled by the system administrator of the remote
+     site for this reason. 
+2. Set up an ssh-agent to supply your bona fides to the
+     remote system using RSA public key encryption. My setup
+     has the following lines in my .profile: 
+
+     ttname=`tty`
+     if [ "${ttname%%[0-9]}" = "/dev/tty" ]; then
+       eval `ssh-agent`
+       ssh-add
+     fi
+
+     This script (which you may need to modify for non-Linux
+     OSes) will set up an ssh-agent, and prompt you for your
+     password to load your private key into the agent's database.
+
+     You now need to copy your public key (located in
+     .ssh/identity.pub) into the files
+     ~/.ssh/authorized_keys and
+     ~/.ssh/known_hosts on the remote remote system.
+     This should enable the remote system to authenticate your
+     ssh connection, using the public key information supplied
+     by ssh-agent. 
+
+Configuration file ~/.nftprc 
+
+Create the file ~/.nftprc containing a list of machines you
+wish to remotely edit via ssh with the following sample format: 
+
+$aliases{grimble}="grimble.north-pole.com:22";
+$aliases{grunge}="localhost:2000";
+
+Any machine name not mentioned in this file will be connected
+to by the usual ftp method. In the above example, two hostnames
+are defined, grimble, and grunge. In the first case, nftp.pl will
+ssh to grimble on port 22 (the standard ssh port). In the second
+case, the standard ssh port of grunge has been forwarded to port
+2000 on localhost (by another ssh process perhaps). This is a
+convenient way of dealing with firewalls. 
+
+Configuring .emacs 
+
+Add the following line to yout .emacs file: 
+
+(setq ange-ftp-ftp-program-name "nftp.pl")
+
+That should be it! 
+
+Things that can go wrong 
+
+nftp.pl deliberately suppresses error messages to avoid confusing
+ange-ftp. Try testing a file transfer using something like the
+following command: 
+
+scp -q -P 22 username@remote.host/.profile /tmp
+
+Any error messages you recieve should be taken seriously. For
+example, earlier versions of scp do not support -q, or your
+default PATH on the remote system may not include scp. 
+
